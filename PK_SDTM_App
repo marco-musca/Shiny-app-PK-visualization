@@ -1,0 +1,937 @@
+# ============================================================
+#  PK Graph — Shiny App per dati in formato SDTM (PC domain)
+# ============================================================
+
+library(shiny)
+library(shinyjs)   
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(DT)
+
+# ============================================================
+#  UI
+# ============================================================
+ui <- fluidPage(
+  title = "PK Concentrations from SDTM (DM + PC)",
+  useShinyjs(),   # abilita shinyjs nell'app
+  
+  tags$head(tags$style(HTML("
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono:wght@500&display=swap');
+
+    /* ── Scala tipografica centralizzata ─────────────────────
+       Modifica qui per cambiare i font in tutta l'app.
+       Valori in rem: 1rem = dimensione base del browser (~16px).
+    ──────────────────────────────────────────────────────── */
+    :root {
+      --fs-2xs:  1.15rem;   /* badge numerici nei filtri      */
+      --fs-xs:   1.15rem;   /* label filtri, header tabella   */
+      --fs-sm:   1.15rem;   /* testo secondario, paginazione  */
+      --fs-base: 1.15rem;   /* testo principale UI            */
+      --fs-nav:  1.15rem;   /* tab di navigazione             */
+      --fs-lg:   1.15rem;   /* section label nella sidebar    */
+      --fs-xl:   1.8rem;   /* titolo header                  */
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      margin: 0;
+    }
+
+    /* Header */
+    .app-header {
+      background: #141821;
+      border-bottom: 1px solid #2d3748;
+      padding: 15px 28px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .app-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: var(--fs-xl);
+      font-weight: 500;
+      color: #4ECDC4;
+      margin: 0;
+    }
+    .app-subtitle { font-size: var(--fs-xl); color: #4ECDC4; margin: 0; }
+
+    /* Layout */
+    .main-layout { display: flex; min-height: calc(100vh - 52px); }
+
+    /* Sidebar */
+    .sidebar-panel {
+      width: 280px;
+      min-width: 280px;
+      background: #141821;
+      border-right: 1px solid #2d3748;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      overflow-y: auto;
+    }
+    .section-label {
+      font-size: var(--fs-lg);
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      margin-bottom: 4px;
+    }
+    /* Label generica dei filtri (step 1-4) */
+    .filter-label {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8899aa;
+    }
+    label { font-size: var(--fs-base); color: #a0aec0; }
+
+    /* File input */
+    .btn-file {
+      background: #2d3748 !important;
+      color: #e2e8f0 !important;
+      border: none !important;
+      border-radius: 6px !important;
+      font-size: var(--fs-base) !important;
+      font-family: 'IBM Plex Sans', sans-serif !important;
+    }
+    .btn-file:hover { background: #3d4a5c !important; }
+    input[type='text'].form-control {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      color: #e2e8f0 !important;
+      border-radius: 6px !important;
+      font-size: var(--fs-base) !important;
+    }
+
+    /* Numeric input — stesso stile dei text input */
+    input[type='number'].form-control {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      color: #e2e8f0 !important;
+      border-radius: 6px !important;
+      font-size: var(--fs-base) !important;
+      font-family: 'IBM Plex Sans', sans-serif !important;
+    }
+    input[type='number'].form-control:focus {
+      border-color: #5B8DB8 !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    /* Frecce spinner dimmed */
+    input[type='number']::-webkit-outer-spin-button,
+    input[type='number']::-webkit-inner-spin-button { opacity: 0.3; }
+    /* Label del numericInput — stesso stile delle filter-label */
+    label[for='pct_subjects'] {
+      font-size: var(--fs-xs) !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.1em !important;
+      text-transform: uppercase !important;
+      color: #8899aa !important;
+    }
+
+    /* Selectize */
+    .selectize-input {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      border-radius: 6px !important;
+      color: #e2e8f0 !important;
+      font-size: var(--fs-base) !important;
+      box-shadow: none !important;
+    }
+    .selectize-input.focus { border-color: #5B8DB8 !important; }
+    .selectize-dropdown {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      border-radius: 6px !important;
+      color: #e2e8f0 !important;
+      font-size: var(--fs-base) !important;
+    }
+    .selectize-dropdown-content .option { color: #e2e8f0 !important; padding: 7px 10px !important; }
+    .selectize-dropdown-content .option.active,
+    .selectize-dropdown-content .option:hover { background: #2d3748 !important; }
+    .selectize-input .item {
+      background: #1e3a5c !important;
+      color: #4ECDC4 !important;
+      border-radius: 4px !important;
+      font-size: var(--fs-sm) !important;
+    }
+
+    /* Radio / checkbox */
+    .radio label, .checkbox label { font-size: var(--fs-base); color: #a0aec0; }
+    input[type='radio'], input[type='checkbox'] { accent-color: #5B8DB8; }
+
+    /* Disabled select (before upload) */
+    .selectize-control.disabled .selectize-input {
+      opacity: 0.4 !important;
+      cursor: not-allowed !important;
+    }
+
+    hr { border: none; border-top: 1px solid #2d3748; margin: 0; }
+
+    /* Placeholder messaggio */
+    .upload-msg {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: #8899aa;
+      font-size: var(--fs-base);
+      text-align: center;
+    }
+    .upload-msg svg { opacity: 0.35; }
+
+    /* Content */
+    .content-panel { flex: 1; padding: 24px 28px; }
+    .plot-card {
+      background: #141821;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 20px;
+      min-height: calc(100vh - 110px);
+    }
+    .plot-card-title {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #8899aa;
+      margin-bottom: 14px;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      border-bottom: 1px solid #2d3748 !important;
+      margin-bottom: 16px;
+    }
+    .nav-tabs > li > a {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: var(--fs-nav);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #8899aa !important;
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 2px solid transparent !important;
+      border-radius: 0 !important;
+      padding: 8px 16px !important;
+    }
+    .nav-tabs > li.active > a,
+    .nav-tabs > li > a:hover {
+      color: #4ECDC4 !important;
+      border-bottom: 2px solid #5B8DB8 !important;
+      background: transparent !important;
+    }
+    .tab-content { background: transparent; }
+
+    /* DT table dark theme */
+    .dataTables_wrapper { color: #a0aec0; font-size: var(--fs-base); }
+    table.dataTable thead th {
+      background: #1a1f2e !important;
+      color: #8899aa !important;
+      font-size: var(--fs-xs) !important;
+      font-weight: 600 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      border-bottom: 1px solid #2d3748 !important;
+    }
+    table.dataTable tbody tr { background: #141821 !important; }
+    table.dataTable tbody tr:hover td { background: #1a1f2e !important; }
+    table.dataTable tbody td {
+      color: #e2e8f0 !important;
+      border-top: 1px solid #1e2433 !important;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: var(--fs-base) !important;
+    }
+    table.dataTable tbody tr.odd  td { background: #141821 !important; }
+    table.dataTable tbody tr.even td { background: #111520 !important; }
+    .dataTables_info, .dataTables_length label,
+    .dataTables_filter label { color: #8899aa !important; font-size: var(--fs-sm) !important; }
+    .dataTables_filter input {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      color: #e2e8f0 !important;
+      border-radius: 5px !important;
+      font-size: var(--fs-nav) !important;
+    }
+    .dataTables_length select {
+      background: #1a1f2e !important;
+      border: 1px solid #2d3748 !important;
+      color: #e2e8f0 !important;
+      border-radius: 5px !important;
+    }
+    .paginate_button {
+      color: #8899aa !important;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 5px !important;
+    }
+    .paginate_button.current, .paginate_button:hover {
+      color: #4ECDC4 !important;
+      background: #2d3748 !important;
+      border: none !important;
+    }
+    .dt-download-btn {
+      background: #2d3748;
+      color: #4ECDC4;
+      border: 1px solid #5B8DB8;
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: var(--fs-sm);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .dt-download-btn:hover { background: #3d4a5c; }
+    .step-badge {
+      display: inline-block;
+      background: #1e3a5c;
+      color: #4ECDC4;
+      border-radius: 50%;
+      width: 17px;
+      height: 17px;
+      font-size: var(--fs-2xs);
+      font-weight: 600;
+      text-align: center;
+      line-height: 17px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    /* Stato di errore sui wrapper dei filtri:
+       solo il bordo del selectize/input cambia colore — niente di più. */
+    .filter-error .selectize-input {
+      border-color: #E8833A !important;
+    }
+    .filter-error input[type='number'].form-control {
+      border-color: #E8833A !important;
+    }
+  "))),
+  
+  div(class = "app-header",
+      h1("PK Graph", class = "app-title"),
+      p("Mean concentrations at nominal timepoints — SDTM (DM and PC)", class = "app-subtitle")
+  ),
+  
+  div(class = "main-layout",
+      
+      # === SIDEBAR ===
+      div(class = "sidebar-panel",
+          
+          # 0 – Upload DM e PC
+          div(
+            div("Datasets", class = "section-label"),
+            div(
+              span("(DM) Demographics", class = "filter-label"), br(),
+              fileInput("file_dm", label = NULL,
+                        accept = c(".csv", ".rds", ".txt", ".sas7bdat"),
+                        buttonLabel = "Upload DM domain",
+                        placeholder = "No file")
+            ),
+            div(
+              span("(PC) Pharmacokinetic Concentrations", class = "filter-label"), br(),
+              fileInput("file_pc", label = NULL,
+                        accept = c(".csv", ".rds", ".txt", ".sas7bdat"),
+                        buttonLabel = "Upload PC domain",
+                        placeholder = "No file")
+            )
+          ),
+          
+          hr(),
+          
+          # 1-4 – Filters
+          # Nota: le label usano la classe CSS .filter-label (non più stile inline ripetuto)
+          div(id = "wrap_pctest",
+            div(HTML('<span class="step-badge">1</span>'),
+                span("PCTEST — Analyte", class = "filter-label")),
+            br(),
+            selectizeInput("sel_pctest", label = NULL,
+                           choices = NULL,
+                           options = list(placeholder = "Select analyte", maxItems = 1))
+          ),
+          
+          div(id = "wrap_pcspec",
+            div(HTML('<span class="step-badge">2</span>'),
+                span("PCSPEC — Specimen", class = "filter-label")),
+            br(),
+            selectizeInput("sel_pcspec", label = NULL,
+                           choices = NULL,
+                           options = list(placeholder = "Select specimen", maxItems = 1))
+          ),
+          
+          div(id = "wrap_visitnum",
+            div(HTML('<span class="step-badge">3</span>'),
+                span("VISITNUM — Visit", class = "filter-label")),
+            br(),
+            selectizeInput("sel_visitnum", label = NULL,
+                           choices = NULL, multiple = TRUE,
+                           options = list(placeholder = "Select visitnum"))
+          ),
+          
+          div(id = "wrap_pctpt",
+            div(HTML('<span class="step-badge">4</span>'),
+                span("PCTPT — Timepoint", class = "filter-label")),
+            br(),
+            selectizeInput("sel_pctpt", label = NULL,
+                           choices = NULL, multiple = TRUE,
+                           options = list(placeholder = "Select timepoint"))
+          ),
+          
+          hr(),
+          
+          # Braccio
+          div(id = "wrap_arm",
+            div("Treatment Arm (ACTARMCD)", class = "section-label"),
+            selectizeInput("sel_arm", label = NULL,
+                           choices = NULL, multiple = TRUE,
+                           options = list(placeholder = "Select arms"))
+          ),
+          
+          hr(),
+          
+          # Opzioni Graph
+          div(
+            div("Graph options", class = "section-label"),
+            checkboxInput("log_y",   "Log scale (Y)",               value = TRUE),
+            checkboxInput("show_sd", "Add standard deviation (±SD)", value = TRUE)
+          ),
+          
+
+      ),
+      
+      # === CONTENUTO A SCHEDE ===
+      div(class = "content-panel",
+          div(class = "plot-card",
+              tabsetPanel(id = "main_tabs", type = "tabs",
+                          
+                          tabPanel("\U0001f4c8  Graph",
+                                   br(),
+                                   uiOutput("plot_or_msg")
+                          ),
+                          
+                          tabPanel("\U0001f4cb  Table",
+                                   br(),
+                                   uiOutput("table_or_msg")
+                          ),
+                          
+                          tabPanel("👤 Individual profiles",
+                                   br(),
+                                   # Selettore soggetto dentro il tab
+                                   div(style = "max-width: 350px; margin-bottom: 12px;",
+                                     div(id = "wrap_usubjid",
+                                       span("USUBJID — Unique Subject Identifier", class = "filter-label"),
+                                       selectizeInput("sel_usubjid", label = NULL,
+                                                      choices = NULL,
+                                                      options = list(placeholder = "— select filters first —",
+                                                                     maxItems = 1))
+                                     )
+                                   ),
+                                   uiOutput("spaghetti_or_msg")
+                          )
+              )
+          )
+      )
+  )
+)
+
+# ============================================================
+#  SERVER
+# ============================================================
+server <- function(input, output, session) {
+  
+  # ----------------------------------------------------------
+  # Tema ggplot condiviso tra tutti i grafici
+  # Modifica qui per cambiare l'aspetto di tutti i grafici.
+  # Le dimensioni (es. axis.text = 12) sono in punti tipografici.
+  # ----------------------------------------------------------
+  pk_theme <- theme_minimal(base_family = "sans") +
+    theme(
+      plot.background   = element_rect(fill = "#141821", color = NA),
+      panel.background  = element_rect(fill = "#141821", color = NA),
+      panel.grid.major  = element_line(color = "#1e2433", linewidth = 0.5),
+      panel.grid.minor  = element_blank(),
+      axis.text         = element_text(size = 12, color = "#718096"),
+      axis.title        = element_text(size = 13, color = "#a0aec0"),
+      legend.background = element_rect(fill = "#141821", color = NA),
+      legend.text       = element_text(size = 12, color = "#a0aec0"),
+      legend.title      = element_text(size = 11, color = "#8899aa"),
+      plot.caption      = element_text(size = 10, color = "#8899aa", hjust = 0)
+    )
+  
+  # ----------------------------------------------------------
+  # Helper: box di errore/avviso nella content area
+  # Chiamato con una stringa, restituisce un div stilizzato.
+  # ----------------------------------------------------------
+  mk_error <- function(msg) {
+    div(class = "upload-msg",
+        tags$svg(
+          xmlns = "http://www.w3.org/2000/svg", width = "40", height = "40",
+          viewBox = "0 0 24 24", fill = "none", stroke = "#E8833A",
+          `stroke-width` = "1.5", `stroke-linecap` = "round", `stroke-linejoin` = "round",
+          tags$path(d = "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"),
+          tags$line(x1 = "12", y1 = "9",  x2 = "12",    y2 = "13"),
+          tags$line(x1 = "12", y1 = "17", x2 = "12.01", y2 = "17")
+        ),
+        p(msg, style = "margin:0; color:#E8833A;")
+    )
+  }
+  
+  # ----------------------------------------------------------
+  # Controlla i filtri in sequenza (solo dopo upload).
+  # Restituisce il primo messaggio di errore trovato, oppure NULL.
+  # Usato dai tre renderUI per decidere cosa mostrare.
+  # ----------------------------------------------------------
+  filter_msg <- reactive({
+    req(input$file_dm, input$file_pc)
+    if (!isTruthy(input$sel_pctest))
+      return("No analyte selected. Please select an analyte (PCTEST) from the sidebar.")
+    if (!isTruthy(input$sel_pcspec))
+      return("No specimen selected. Please select a specimen (PCSPEC) from the sidebar.")
+    if (length(input$sel_visitnum) == 0)
+      return("No visit selected. Please select at least one visit (VISITNUM) from the sidebar.")
+    if (length(input$sel_pctpt) == 0)
+      return("No timepoint selected. Please select at least one timepoint (PCTPT) from the sidebar.")
+    if (length(input$sel_arm) == 0)
+      return("No treatment arm selected. Please select at least one treatment Arm (ACTARMCD) from the sidebar.")
+    NULL
+  })
+
+  # ----------------------------------------------------------
+  # Indicatori visivi sidebar: bordo ambra sul wrapper del filtro
+  # vuoto. Attivi solo dopo il caricamento del file.
+  # toggleClass(id, class, condition): aggiunge se TRUE, rimuove se FALSE.
+  # ----------------------------------------------------------
+  observe({
+    has_file <- !is.null(input$file_dm) && !is.null(input$file_pc)
+
+    toggleClass("wrap_pctest",   "filter-error", has_file && !isTruthy(input$sel_pctest))
+    toggleClass("wrap_pcspec",   "filter-error", has_file && !isTruthy(input$sel_pcspec))
+    toggleClass("wrap_visitnum", "filter-error", has_file && length(input$sel_visitnum) == 0)
+    toggleClass("wrap_pctpt",    "filter-error", has_file && length(input$sel_pctpt)    == 0)
+    toggleClass("wrap_arm",      "filter-error", has_file && length(input$sel_arm)      == 0)
+    toggleClass("wrap_usubjid",  "filter-error", has_file && !isTruthy(input$sel_usubjid))
+  })
+
+
+  # ----------------------------------------------------------
+  # Helper: legge un file caricato (CSV, RDS, SAS7BDAT)
+  # ----------------------------------------------------------
+  read_upload <- function(file_info) {
+    ext <- tolower(tools::file_ext(file_info$name))
+    switch(ext,
+           rds      = readRDS(file_info$datapath),
+           sas7bdat = {
+             if (!requireNamespace("haven", quietly = TRUE)) stop("Install 'haven' to read SAS files.")
+             haven::read_sas(file_info$datapath)
+           },
+           read.csv(file_info$datapath, stringsAsFactors = FALSE)
+    )
+  }
+
+  # ----------------------------------------------------------
+  # Lettura DM e PC + inner join
+  # ----------------------------------------------------------
+  raw_dm <- reactive({
+    req(input$file_dm)
+    df <- read_upload(input$file_dm)
+    names(df) <- toupper(names(df))
+    validate(need("USUBJID"  %in% names(df), "DM: USUBJID variable is missing."))
+    validate(need("RFSTDTC"  %in% names(df), "DM: RFSTDTC variable is missing."))
+    validate(need("ACTARMCD" %in% names(df), "DM: ACTARMCD variable is missing."))
+    # Filtra solo soggetti con RFSTDTC non missing
+    df |>
+      filter(!is.na(RFSTDTC), RFSTDTC != "") |>
+      select(USUBJID, ACTARMCD)
+  })
+
+  raw_pc <- reactive({
+    req(input$file_pc)
+    read_upload(input$file_pc)
+  })
+
+  # Dati PC: inner join con DM filtrato + normalizzazione
+  pc_data <- reactive({
+    req(raw_dm(), raw_pc())
+    df <- raw_pc()
+    names(df) <- toupper(names(df))
+
+    required <- c("USUBJID", "PCTEST", "PCSTRESN", "PCTPTNUM")
+    missing  <- setdiff(required, names(df))
+    validate(need(length(missing) == 0,
+                  paste("PC: variables missing:", paste(missing, collapse = ", "))))
+
+    # Rimuovi ACTARMCD da PC se presente (verrà da DM)
+    df <- df |> select(-any_of("ACTARMCD"))
+
+    df |>
+      inner_join(raw_dm(), by = "USUBJID") |>
+      mutate(
+        PCSTRESN = as.numeric(PCSTRESN),
+        PCTPTNUM = as.numeric(PCTPTNUM),
+        VISITNUM = if ("VISITNUM" %in% names(df)) as.numeric(VISITNUM) else NA_real_,
+        PCSPEC   = if ("PCSPEC"   %in% names(df)) as.character(PCSPEC)   else "N/A",
+        PCTPT    = if ("PCTPT"    %in% names(df)) as.character(PCTPT)    else as.character(PCTPTNUM),
+        PCTEST   = as.character(PCTEST)
+      )
+  })
+  
+  # ----------------------------------------------------------
+  # 2. Cascata Step 1 — PCTEST
+  # ----------------------------------------------------------
+  observeEvent(pc_data(), {
+    tests <- sort(unique(pc_data()$PCTEST))
+    updateSelectizeInput(session, "sel_pctest",
+                         choices  = tests,
+                         selected = tests[1],
+                         options  = list(placeholder = "select analyte", maxItems = 1))
+    arms <- sort(unique(pc_data()$ACTARMCD))
+    updateSelectizeInput(session, "sel_arm",
+                         choices  = arms,
+                         selected = arms,
+                         options  = list(placeholder = "All arms"))
+  })
+  
+  # ----------------------------------------------------------
+  # 3. Cascata Step 2 — PCSPEC (filtrato per PCTEST)
+  # ----------------------------------------------------------
+  observeEvent(input$sel_pctest, {
+    req(pc_data(), input$sel_pctest)
+    specs <- pc_data() |>
+      filter(PCTEST == input$sel_pctest) |>
+      pull(PCSPEC) |> unique() |> sort()
+    updateSelectizeInput(session, "sel_pcspec",
+                         choices  = specs,
+                         selected = specs[1],
+                         options  = list(placeholder = "select matrix", maxItems = 1))
+  })
+  
+  # ----------------------------------------------------------
+  # 4. Cascata Step 3 — VISITNUM (filtrato per PCTEST + PCSPEC)
+  # ----------------------------------------------------------
+  observeEvent(c(input$sel_pctest, input$sel_pcspec), {
+    req(pc_data(), input$sel_pctest, input$sel_pcspec)
+    visits <- pc_data() |>
+      filter(PCTEST == input$sel_pctest, PCSPEC == input$sel_pcspec) |>
+      pull(VISITNUM) |> unique() |> sort()
+    visits_chr <- as.character(visits)
+    updateSelectizeInput(session, "sel_visitnum",
+                         choices  = visits_chr,
+                         selected = visits_chr,
+                         options  = list(placeholder = "All visits"))
+  })
+  
+  # ----------------------------------------------------------
+  # 5. Cascata Step 4 — PCTPT (filtrato per tutto sopra)
+  # ----------------------------------------------------------
+  observeEvent(c(input$sel_pctest, input$sel_pcspec, input$sel_visitnum), {
+    req(pc_data(), input$sel_pctest, input$sel_pcspec, length(input$sel_visitnum) > 0)
+    tpts <- pc_data() |>
+      filter(PCTEST   == input$sel_pctest,
+             PCSPEC   == input$sel_pcspec,
+             VISITNUM %in% as.numeric(input$sel_visitnum)) |>
+      distinct(PCTPT, PCTPTNUM) |>
+      arrange(PCTPTNUM) |>
+      pull(PCTPT)
+    updateSelectizeInput(session, "sel_pctpt",
+                         choices  = tpts,
+                         selected = tpts,
+                         options  = list(placeholder = "All timepoints"))
+  })
+  
+  # ----------------------------------------------------------
+  # 5b. Cascata USUBJID — aggiornato quando cambiano i dati filtrati
+  # Mostra solo i soggetti presenti nei dati con i filtri correnti.
+  # ----------------------------------------------------------
+  observe({
+    req(filtered_data())
+    subjects <- sort(unique(filtered_data()$USUBJID))
+    updateSelectizeInput(session, "sel_usubjid",
+                         choices  = subjects,
+                         selected = subjects[1],
+                         options  = list(placeholder = "select a subject", maxItems = 1))
+  })
+  # ----------------------------------------------------------
+  filtered_data <- reactive({
+    req(pc_data(),
+        input$sel_pctest, input$sel_pcspec,
+        length(input$sel_visitnum) > 0,
+        length(input$sel_pctpt)   > 0,
+        length(input$sel_arm)     > 0)
+    
+    pc_data() |>
+      filter(
+        PCTEST   == input$sel_pctest,
+        PCSPEC   == input$sel_pcspec,
+        VISITNUM %in% as.numeric(input$sel_visitnum),
+        PCTPT    %in% input$sel_pctpt,
+        ACTARMCD %in% input$sel_arm,
+        !is.na(PCSTRESN),
+        PCSTRESN > 0
+      )
+  })
+  
+  # ----------------------------------------------------------
+  # 7. Statistiche riassuntive per timepoint × braccio
+  # ----------------------------------------------------------
+  summary_tbl <- reactive({
+    req(filtered_data())
+    filtered_data() |>
+      group_by(ACTARMCD, PCTPTNUM, PCTPT) |>
+      summarise(
+        N    = n(),
+        Mean = mean(PCSTRESN, na.rm = TRUE),
+        SD   = sd(PCSTRESN,   na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      mutate(
+        SD   = ifelse(is.na(SD), 0, SD),
+        ymin = pmax(Mean - SD, 1e-6),
+        ymax = Mean + SD
+      ) |>
+      arrange(ACTARMCD, PCTPTNUM)
+  })
+  
+  # ----------------------------------------------------------
+  # 8. Placeholder vs plot
+  # ----------------------------------------------------------
+  output$plot_or_msg <- renderUI({
+    if (is.null(input$file_dm) || is.null(input$file_pc)) {
+      div(class = "upload-msg",
+          tags$svg(xmlns = "http://www.w3.org/2000/svg", width = "48", height = "48",
+                   viewBox = "0 0 24 24", fill = "none", stroke = "#718096",
+                   `stroke-width` = "1.5", `stroke-linecap` = "round", `stroke-linejoin` = "round",
+                   tags$path(d = "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"),
+                   tags$polyline(points = "17 8 12 3 7 8"),
+                   tags$line(x1 = "12", y1 = "3", x2 = "12", y2 = "15")
+          ),
+          p("Upload DM and PC to visualize graph", style = "margin:0; color:#718096;")
+      )
+    } else if (!is.null(filter_msg())) {
+      mk_error(filter_msg())
+    } else {
+      plotOutput("pk_plot", height = "calc(100vh - 175px)")
+    }
+  })
+  
+  # ----------------------------------------------------------
+  # 9. Palette colori
+  # ----------------------------------------------------------
+  palette_arms <- c("#4299e1", "#f6ad55", "#68d391", "#fc8181", "#b794f4",
+                    "#76e4f7", "#f687b3", "#9ae6b4", "#fbd38d", "#a3bffa")
+  
+  # ----------------------------------------------------------
+  # 10. Graph (mean ± SD per braccio)
+  # ----------------------------------------------------------
+  output$pk_plot <- renderPlot({
+    tbl <- summary_tbl()
+    validate(need(nrow(tbl) > 0, "No data available with selected filters."))
+    
+    p <- ggplot(tbl, aes(x = PCTPTNUM, y = Mean, color = ACTARMCD, group = ACTARMCD))
+    
+    if (isTRUE(input$show_sd))
+      p <- p + geom_errorbar(aes(ymin = ymin, ymax = ymax),
+                             width = 0.6, alpha = 0.45, linewidth = 0.7)
+    
+    p <- p +
+      geom_line(linewidth = 1) +
+      geom_point(size = 3.5, shape = 21, fill = "#141821", stroke = 2) +
+      scale_color_manual(values = palette_arms) +
+      labs(
+        x       = "Nominal timepoint (PCTPTNUM)",
+        y       = if (input$log_y) "Mean PCSTRESN (log scale)" else "Mean PCSTRESN",
+        color   = "Treatment arm\n(ACTARMCD)",
+        caption = paste0("PCTEST: ", input$sel_pctest,
+                         "  |  PCSPEC: ", input$sel_pcspec,
+                         "  |  VISITNUM: ", paste(input$sel_visitnum, collapse = ", "))
+      ) +
+      pk_theme   # <-- tema condiviso
+    
+    if (input$log_y)
+      p <- p + scale_y_log10(labels = label_number(accuracy = 0.01))
+    else
+      p <- p + scale_y_continuous(labels = label_number(accuracy = 0.01))
+    
+    p
+  }, bg = "#141821", res = 96)
+  
+  # ----------------------------------------------------------
+  # 11. Table riassuntiva
+  # ----------------------------------------------------------
+  output$table_or_msg <- renderUI({
+    if (is.null(input$file_dm) || is.null(input$file_pc)) {
+      div(class = "upload-msg",
+          tags$svg(xmlns = "http://www.w3.org/2000/svg", width = "48", height = "48",
+                   viewBox = "0 0 24 24", fill = "none", stroke = "#718096",
+                   `stroke-width` = "1.5", `stroke-linecap` = "round", `stroke-linejoin` = "round",
+                   tags$path(d = "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"),
+                   tags$polyline(points = "17 8 12 3 7 8"),
+                   tags$line(x1 = "12", y1 = "3", x2 = "12", y2 = "15")
+          ),
+          p("Upload DM and PC datasets to visualize the table", style = "margin:0; color:#718096;")
+      )
+    } else if (!is.null(filter_msg())) {
+      mk_error(filter_msg())
+    } else {
+      tagList(
+        downloadButton("dl_table", "Download CSV", class = "dt-download-btn"),
+        DTOutput("pk_table")
+      )
+    }
+  })
+  
+  output$pk_table <- renderDT({
+    tbl <- summary_tbl()
+    validate(need(nrow(tbl) > 0, "No data available with selected filters."))
+    
+    tbl_display <- tbl |>
+      select(`Treatment arm` = ACTARMCD, PCTPTNUM, Timepoint = PCTPT, N, Mean, SD) |>
+      mutate(Mean = round(Mean, 4), SD = round(SD, 4))
+    
+    datatable(
+      tbl_display,
+      rownames  = FALSE,
+      selection = "none",
+      options   = list(
+        pageLength = 20,
+        dom        = "ftip",
+        ordering   = TRUE,
+        scrollX    = FALSE,
+        language   = list(
+          search    = "Search:",
+          info      = "Rows _START_–_END_ of _TOTAL_",
+          infoEmpty = "No rows",
+          paginate  = list(previous = "‹", `next` = "›")
+        )
+      ),
+      class = "cell-border"
+    ) |>
+      formatStyle(
+        "Treatment arm",
+        backgroundColor = styleEqual(
+          levels = sort(unique(tbl_display$`Treatment arm`)),
+          values = rep("#1a1f2e", length(unique(tbl_display$`Treatment arm`)))
+        )
+      )
+  })
+  
+  output$dl_table <- downloadHandler(
+    filename = function() {
+      paste0("PK_summary_", input$sel_pctest, "_", input$sel_pcspec, "_",
+             format(Sys.Date(), "%Y%m%d"), ".csv")
+    },
+    content = function(file) {
+      summary_tbl() |>
+        select(ACTARMCD, PCTPTNUM, PCTPT, N, Mean, SD) |>
+        mutate(Mean = round(Mean, 4), SD = round(SD, 4)) |>
+        write.csv(file, row.names = FALSE)
+    }
+  )
+  
+  # ----------------------------------------------------------
+  # 12. Placeholder vs spaghetti plot
+  # ----------------------------------------------------------
+  output$spaghetti_or_msg <- renderUI({
+    if (is.null(input$file_dm) || is.null(input$file_pc)) {
+      div(class = "upload-msg",
+          tags$svg(xmlns = "http://www.w3.org/2000/svg", width = "48", height = "48",
+                   viewBox = "0 0 24 24", fill = "none", stroke = "#718096",
+                   `stroke-width` = "1.5", `stroke-linecap` = "round", `stroke-linejoin` = "round",
+                   tags$path(d = "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"),
+                   tags$polyline(points = "17 8 12 3 7 8"),
+                   tags$line(x1 = "12", y1 = "3", x2 = "12", y2 = "15")
+          ),
+          p("Upload DM and PC datasets to visualize individual profiles", style = "margin:0; color:#718096;"))
+    } else if (!is.null(filter_msg())) {
+      mk_error(filter_msg())
+    } else if (!isTruthy(input$sel_usubjid)) {
+      mk_error("No subject selected. Please select a Subject (USUBJID) above.")
+    } else {
+      plotOutput("spaghetti_plot", height = "calc(100vh - 175px)")
+    }
+  })
+  
+  # ----------------------------------------------------------
+  # 13. Individual profile — profilo del singolo soggetto selezionato
+  # ----------------------------------------------------------
+  output$spaghetti_plot <- renderPlot({
+    req(input$sel_usubjid)
+    df <- filtered_data()
+    validate(need("USUBJID" %in% names(df), "Column USUBJID not found in the dataset."))
+
+    df_subj <- df |> filter(USUBJID == input$sel_usubjid)
+    validate(need(nrow(df_subj) > 0, "No data for the selected subject with current filters."))
+
+    # Braccio terapeutico del soggetto selezionato
+    arm_subj <- unique(df_subj$ACTARMCD)[1]
+
+    # Media del gruppo (stesso braccio) da summary_tbl
+    df_mean <- summary_tbl() |> filter(ACTARMCD == arm_subj)
+
+    # Etichette per la legenda
+    lbl_mean <- paste0("Group mean (", arm_subj, ")")
+    lbl_subj <- paste0("Individual (", input$sel_usubjid, ")")
+
+    ggplot() +
+      # --- Media del gruppo ---
+      geom_line(data = df_mean,
+                aes(x = PCTPTNUM, y = Mean, color = lbl_mean, linetype = lbl_mean),
+                linewidth = 0.7) +
+      geom_point(data = df_mean,
+                 aes(x = PCTPTNUM, y = Mean, color = lbl_mean),
+                 size = 2, shape = 21, fill = "#141821", stroke = 1.2) +
+      # --- Profilo individuale ---
+      geom_line(data = df_subj,
+                aes(x = PCTPTNUM, y = PCSTRESN, color = lbl_subj, linetype = lbl_subj),
+                linewidth = 1) +
+      geom_point(data = df_subj,
+                 aes(x = PCTPTNUM, y = PCSTRESN, color = lbl_subj),
+                 size = 3.5, shape = 21, fill = "#141821", stroke = 2) +
+      # Mappatura colori e linetype nella legenda
+      scale_color_manual(
+        values = setNames(c("#718096", "#4ECDC4"), c(lbl_mean, lbl_subj))
+      ) +
+      scale_linetype_manual(
+        values = setNames(c("dashed", "solid"), c(lbl_mean, lbl_subj))
+      ) +
+      labs(
+        x        = "Nominal timepoint (PCTPTNUM)",
+        y        = if (input$log_y) "PCSTRESN (log scale)" else "PCSTRESN",
+        color    = NULL,
+        linetype = NULL,
+        caption  = paste0("Arm: ", arm_subj,
+                          "  |  PCTEST: ", input$sel_pctest,
+                          "  |  PCSPEC: ", input$sel_pcspec)
+      ) +
+      pk_theme +
+      # Legenda compatta in alto, stessa altezza del selettore USUBJID
+      theme(
+        legend.position  = "top",
+        legend.justification = "left",
+        legend.direction = "horizontal",
+        legend.margin    = margin(0, 0, 0, 0),
+        legend.key.width = unit(28, "pt")
+      ) +
+      # Unisci le due leggende (color + linetype) in una sola
+      guides(color = guide_legend(override.aes = list(
+        linetype = c("dashed", "solid"),
+        shape    = c(21, 21)
+      ))) +
+      if (input$log_y) scale_y_log10(labels = label_number(accuracy = 0.01)) else
+        scale_y_continuous(labels = label_number(accuracy = 0.01))
+
+  }, bg = "#141821", res = 96)
+  
+}  # <- chiusura server
+
+shinyApp(ui, server)

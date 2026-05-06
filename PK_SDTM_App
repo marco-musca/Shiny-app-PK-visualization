@@ -1,5 +1,5 @@
 # ============================================================
-#  PK Graph — Shiny App per dati in formato SDTM (PC domain)
+#  PK Graph - Shiny App for SDTM data (PC + DM domains)
 # ============================================================
 
 library(shiny)
@@ -10,27 +10,27 @@ library(scales)
 library(DT)
 
 # ============================================================
-#  UI
+#  User interface (UI)
 # ============================================================
 ui <- fluidPage(
   title = "PK Concentrations from SDTM (DM + PC)",
-  useShinyjs(),   # abilita shinyjs nell'app
+  useShinyjs(),   # use shinyjs
   
   tags$head(tags$style(HTML("
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono:wght@500&display=swap');
 
-    /* ── Scala tipografica centralizzata ─────────────────────
-       Modifica qui per cambiare i font in tutta l'app.
-       Valori in rem: 1rem = dimensione base del browser (~16px).
-    ──────────────────────────────────────────────────────── */
+    /* -------------- Typographic scale ---------------------
+       Modify here to change font in the application
+       1rem ~16px.
+    -------------------------------------------------------- */
     :root {
-      --fs-2xs:  1.15rem;   /* badge numerici nei filtri      */
-      --fs-xs:   1.15rem;   /* label filtri, header tabella   */
-      --fs-sm:   1.15rem;   /* testo secondario, paginazione  */
-      --fs-base: 1.15rem;   /* testo principale UI            */
-      --fs-nav:  1.15rem;   /* tab di navigazione             */
-      --fs-lg:   1.15rem;   /* section label nella sidebar    */
-      --fs-xl:   1.8rem;   /* titolo header                  */
+      --fs-2xs:  1.15rem;   /* numeric badges      */
+      --fs-xs:   1.15rem;   /* filters label, header table  */
+      --fs-sm:   1.15rem;   /* secondary text  */
+      --fs-base: 1.15rem;   /* primary text UI            */
+      --fs-nav:  1.15rem;   /* navigation tab            */
+      --fs-lg:   1.15rem;   /* sidebar: label section    */
+      --fs-xl:   1.8rem;   /* header title                */
     }
 
     * { box-sizing: border-box; }
@@ -82,7 +82,7 @@ ui <- fluidPage(
       color: #FFFFFF;
       margin-bottom: 4px;
     }
-    /* Label generica dei filtri (step 1-4) */
+    /* Generic filters label (step 1-4) */
     .filter-label {
       font-size: var(--fs-xs);
       font-weight: 600;
@@ -110,7 +110,7 @@ ui <- fluidPage(
       font-size: var(--fs-base) !important;
     }
 
-    /* Numeric input — stesso stile dei text input */
+    /* Numeric input - same style as input text */
     input[type='number'].form-control {
       background: #1a1f2e !important;
       border: 1px solid #2d3748 !important;
@@ -124,10 +124,10 @@ ui <- fluidPage(
       box-shadow: none !important;
       outline: none !important;
     }
-    /* Frecce spinner dimmed */
+    /* Arrows with reduced opacity */
     input[type='number']::-webkit-outer-spin-button,
     input[type='number']::-webkit-inner-spin-button { opacity: 0.3; }
-    /* Label del numericInput — stesso stile delle filter-label */
+    /* numericInput label - same style as filter-label */
     label[for='pct_subjects'] {
       font-size: var(--fs-xs) !important;
       font-weight: 600 !important;
@@ -175,7 +175,7 @@ ui <- fluidPage(
 
     hr { border: none; border-top: 1px solid #2d3748; margin: 0; }
 
-    /* Placeholder messaggio */
+    /* Placeholder message */
     .upload-msg {
       display: flex;
       flex-direction: column;
@@ -309,8 +309,7 @@ ui <- fluidPage(
       vertical-align: middle;
     }
 
-    /* Stato di errore sui wrapper dei filtri:
-       solo il bordo del selectize/input cambia colore — niente di più. */
+    /* Error on filters */
     .filter-error .selectize-input {
       border-color: #E8833A !important;
     }
@@ -321,7 +320,7 @@ ui <- fluidPage(
   
   div(class = "app-header",
       h1("PK Graph", class = "app-title"),
-      p("Mean concentrations at nominal timepoints — SDTM (DM and PC)", class = "app-subtitle")
+      p("Mean concentrations at nominal timepoints - SDTM (DM and PC)", class = "app-subtitle")
   ),
   
   div(class = "main-layout",
@@ -351,10 +350,10 @@ ui <- fluidPage(
           hr(),
           
           # 1-4 – Filters
-          # Nota: le label usano la classe CSS .filter-label (non più stile inline ripetuto)
+          # Note: Labels are using the CSS class .filter-label
           div(id = "wrap_pctest",
             div(HTML('<span class="step-badge">1</span>'),
-                span("PCTEST — Analyte", class = "filter-label")),
+                span("PCTEST - Analyte", class = "filter-label")),
             br(),
             selectizeInput("sel_pctest", label = NULL,
                            choices = NULL,
@@ -363,7 +362,7 @@ ui <- fluidPage(
           
           div(id = "wrap_pcspec",
             div(HTML('<span class="step-badge">2</span>'),
-                span("PCSPEC — Specimen", class = "filter-label")),
+                span("PCSPEC - Specimen", class = "filter-label")),
             br(),
             selectizeInput("sel_pcspec", label = NULL,
                            choices = NULL,
@@ -372,7 +371,7 @@ ui <- fluidPage(
           
           div(id = "wrap_visitnum",
             div(HTML('<span class="step-badge">3</span>'),
-                span("VISITNUM — Visit", class = "filter-label")),
+                span("VISITNUM - Visit", class = "filter-label")),
             br(),
             selectizeInput("sel_visitnum", label = NULL,
                            choices = NULL, multiple = TRUE,
@@ -381,7 +380,7 @@ ui <- fluidPage(
           
           div(id = "wrap_pctpt",
             div(HTML('<span class="step-badge">4</span>'),
-                span("PCTPT — Timepoint", class = "filter-label")),
+                span("PCTPT - Timepoint", class = "filter-label")),
             br(),
             selectizeInput("sel_pctpt", label = NULL,
                            choices = NULL, multiple = TRUE,
@@ -390,7 +389,7 @@ ui <- fluidPage(
           
           hr(),
           
-          # Braccio
+          # Arm
           div(id = "wrap_arm",
             div("Treatment Arm (ACTARMCD)", class = "section-label"),
             selectizeInput("sel_arm", label = NULL,
@@ -400,7 +399,7 @@ ui <- fluidPage(
           
           hr(),
           
-          # Opzioni Graph
+          # Graph options
           div(
             div("Graph options", class = "section-label"),
             checkboxInput("log_y",   "Log scale (Y)",               value = TRUE),
@@ -410,7 +409,7 @@ ui <- fluidPage(
 
       ),
       
-      # === CONTENUTO A SCHEDE ===
+      # === CONTENT TABS ===
       div(class = "content-panel",
           div(class = "plot-card",
               tabsetPanel(id = "main_tabs", type = "tabs",
@@ -427,13 +426,13 @@ ui <- fluidPage(
                           
                           tabPanel("👤 Individual profiles",
                                    br(),
-                                   # Selettore soggetto dentro il tab
+                                   # Subject selector
                                    div(style = "max-width: 350px; margin-bottom: 12px;",
                                      div(id = "wrap_usubjid",
-                                       span("USUBJID — Unique Subject Identifier", class = "filter-label"),
+                                       span("USUBJID - Unique Subject Identifier", class = "filter-label"),
                                        selectizeInput("sel_usubjid", label = NULL,
                                                       choices = NULL,
-                                                      options = list(placeholder = "— select filters first —",
+                                                      options = list(placeholder = "- select filters first -",
                                                                      maxItems = 1))
                                      )
                                    ),
@@ -451,9 +450,8 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # ----------------------------------------------------------
-  # Tema ggplot condiviso tra tutti i grafici
-  # Modifica qui per cambiare l'aspetto di tutti i grafici.
-  # Le dimensioni (es. axis.text = 12) sono in punti tipografici.
+  # ggplot theme is shared across all graphs
+  # Modify here to change appearance of all subjectsodifica qui per cambiare l'aspetto di tutti i grafici.
   # ----------------------------------------------------------
   pk_theme <- theme_minimal(base_family = "sans") +
     theme(
@@ -470,8 +468,7 @@ server <- function(input, output, session) {
     )
   
   # ----------------------------------------------------------
-  # Helper: box di errore/avviso nella content area
-  # Chiamato con una stringa, restituisce un div stilizzato.
+  # Helper: error box in content area
   # ----------------------------------------------------------
   mk_error <- function(msg) {
     div(class = "upload-msg",
@@ -488,9 +485,8 @@ server <- function(input, output, session) {
   }
   
   # ----------------------------------------------------------
-  # Controlla i filtri in sequenza (solo dopo upload).
-  # Restituisce il primo messaggio di errore trovato, oppure NULL.
-  # Usato dai tre renderUI per decidere cosa mostrare.
+  # Check filters in order after the uplaod
+  # Show first error message found, otherwise NULL
   # ----------------------------------------------------------
   filter_msg <- reactive({
     req(input$file_dm, input$file_pc)
@@ -508,9 +504,9 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------
-  # Indicatori visivi sidebar: bordo ambra sul wrapper del filtro
-  # vuoto. Attivi solo dopo il caricamento del file.
-  # toggleClass(id, class, condition): aggiunge se TRUE, rimuove se FALSE.
+  # Sidebar visual cues: amber border on the filter wrapper
+  # They are actives after upload
+  # toggleClass(id, class, condition): add if TRUE, remove if FALSE.
   # ----------------------------------------------------------
   observe({
     has_file <- !is.null(input$file_dm) && !is.null(input$file_pc)
@@ -587,7 +583,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 2. Cascata Step 1 — PCTEST
+  # 2. Cascata Step 1 - PCTEST
   # ----------------------------------------------------------
   observeEvent(pc_data(), {
     tests <- sort(unique(pc_data()$PCTEST))
@@ -603,7 +599,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 3. Cascata Step 2 — PCSPEC (filtrato per PCTEST)
+  # 3. Cascata Step 2 - PCSPEC (filtrato per PCTEST)
   # ----------------------------------------------------------
   observeEvent(input$sel_pctest, {
     req(pc_data(), input$sel_pctest)
@@ -617,7 +613,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 4. Cascata Step 3 — VISITNUM (filtrato per PCTEST + PCSPEC)
+  # 4. Cascata Step 3 - VISITNUM (filtrato per PCTEST + PCSPEC)
   # ----------------------------------------------------------
   observeEvent(c(input$sel_pctest, input$sel_pcspec), {
     req(pc_data(), input$sel_pctest, input$sel_pcspec)
@@ -632,7 +628,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 5. Cascata Step 4 — PCTPT (filtrato per tutto sopra)
+  # 5. Cascata Step 4 - PCTPT (filtrato per tutto sopra)
   # ----------------------------------------------------------
   observeEvent(c(input$sel_pctest, input$sel_pcspec, input$sel_visitnum), {
     req(pc_data(), input$sel_pctest, input$sel_pcspec, length(input$sel_visitnum) > 0)
@@ -650,7 +646,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 5b. Cascata USUBJID — aggiornato quando cambiano i dati filtrati
+  # 5b. Cascata USUBJID - aggiornato quando cambiano i dati filtrati
   # Mostra solo i soggetti presenti nei dati con i filtri correnti.
   # ----------------------------------------------------------
   observe({
@@ -862,7 +858,7 @@ server <- function(input, output, session) {
   })
   
   # ----------------------------------------------------------
-  # 13. Individual profile — profilo del singolo soggetto selezionato
+  # 13. Individual profile - profilo del singolo soggetto selezionato
   # ----------------------------------------------------------
   output$spaghetti_plot <- renderPlot({
     req(input$sel_usubjid)
